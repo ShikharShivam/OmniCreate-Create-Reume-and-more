@@ -15,7 +15,8 @@
     "react": "^19.2.3",
     "qrcode.react": "^4.2.0",
     "framer-motion": "^12.23.26",
-    "html2pdf.js": "0.10.1"
+    "html2pdf.js": "0.10.1",
+    "pdfjs-dist": "3.11.174"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

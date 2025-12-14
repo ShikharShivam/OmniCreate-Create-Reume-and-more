@@ -19,13 +19,13 @@ export const Navigation: React.FC<NavigationProps> = ({ currentMode, setMode, on
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 md:top-0 md:bottom-auto z-50 bg-slate-900/80 backdrop-blur-md border-t md:border-t-0 md:border-b border-slate-700 h-16 md:h-20">
+    <nav className="fixed bottom-0 left-0 right-0 md:top-0 md:bottom-auto z-50 bg-neutral-950/80 backdrop-blur-xl border-t md:border-t-0 md:border-b border-amber-500/20 h-16 md:h-20 shadow-[0_0_15px_rgba(251,191,36,0.1)]">
       <div className="max-w-7xl mx-auto px-4 h-full flex items-center justify-between">
-        <div className="hidden md:flex items-center gap-2 cursor-pointer" onClick={() => setMode(AppMode.HOME)}>
-          <div className="w-8 h-8 bg-gradient-to-tr from-cyan-500 to-blue-500 rounded-lg flex items-center justify-center font-bold text-white">
-            O
+        <div className="hidden md:flex items-center gap-2 cursor-pointer group" onClick={() => setMode(AppMode.HOME)}>
+          <div className="w-10 h-10 bg-gradient-to-br from-amber-300 via-amber-500 to-yellow-600 rounded-xl flex items-center justify-center font-bold text-neutral-900 shadow-lg shadow-amber-500/20 group-hover:shadow-amber-500/40 transition-shadow">
+            <span className="font-serif text-xl">O</span>
           </div>
-          <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-blue-400">
+          <span className="text-xl font-bold font-serif bg-clip-text text-transparent bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-600 tracking-wide">
             OmniCreate
           </span>
         </div>
@@ -35,18 +35,21 @@ export const Navigation: React.FC<NavigationProps> = ({ currentMode, setMode, on
             <button
               key={item.mode}
               onClick={() => setMode(item.mode)}
-              className={`flex flex-col md:flex-row items-center gap-1 md:gap-2 p-2 rounded-lg transition-all duration-300 ${
+              className={`flex flex-col md:flex-row items-center gap-1 md:gap-2 p-2 rounded-lg transition-all duration-300 relative overflow-hidden ${
                 currentMode === item.mode
-                  ? 'text-cyan-400 bg-cyan-400/10'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'text-amber-400'
+                  : 'text-neutral-500 hover:text-amber-200'
               }`}
             >
-              <item.icon className="w-6 h-6 md:w-5 md:h-5" />
-              <span className="text-xs md:text-sm font-medium">{item.label}</span>
+               {currentMode === item.mode && (
+                 <div className="absolute inset-0 bg-gradient-to-b from-amber-500/10 to-transparent opacity-100 rounded-lg" />
+               )}
+              <item.icon className={`w-6 h-6 md:w-5 md:h-5 ${currentMode === item.mode ? 'drop-shadow-[0_0_8px_rgba(251,191,36,0.5)]' : ''}`} />
+              <span className="text-xs md:text-sm font-medium tracking-wide">{item.label}</span>
               {currentMode === item.mode && (
                 <motion.div
                   layoutId="activeTab"
-                  className="absolute bottom-0 md:bottom-auto md:top-full w-full h-0.5 bg-cyan-400 hidden md:block"
+                  className="absolute bottom-0 md:bottom-auto md:top-full w-full h-0.5 bg-gradient-to-r from-amber-300 via-yellow-500 to-amber-300 hidden md:block shadow-[0_0_10px_#fbbf24]"
                 />
               )}
             </button>
@@ -56,10 +59,10 @@ export const Navigation: React.FC<NavigationProps> = ({ currentMode, setMode, on
         <div className="hidden md:block">
            <button 
              onClick={onShowQR}
-             className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-full border border-slate-600 transition-colors"
+             className="flex items-center gap-2 px-5 py-2 bg-gradient-to-r from-emerald-900 to-neutral-900 hover:from-emerald-800 hover:to-neutral-800 rounded-full border border-emerald-500/30 transition-all shadow-lg hover:shadow-emerald-500/20 group"
            >
-             <Smartphone className="w-4 h-4 text-cyan-400" />
-             <span className="text-sm font-medium">Mobile Connect</span>
+             <Smartphone className="w-4 h-4 text-emerald-400 group-hover:text-emerald-300" />
+             <span className="text-sm font-medium text-emerald-100">Mobile Connect</span>
            </button>
         </div>
       </div>

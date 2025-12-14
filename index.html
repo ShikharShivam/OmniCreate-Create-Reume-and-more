@@ -6,6 +6,7 @@
     <title>OmniCreate AI Suite</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
     <script>
       tailwind.config = {
         darkMode: 'class',
@@ -13,17 +14,22 @@
           extend: {
             fontFamily: {
               sans: ['Inter', 'sans-serif'],
+              serif: ['Playfair Display', 'serif'],
             },
             colors: {
-              primary: {
-                50: '#f0f9ff',
-                100: '#e0f2fe',
-                500: '#0ea5e9',
-                600: '#0284c7',
-                900: '#0c4a6e',
+              gold: {
+                100: '#fff9c4',
+                200: '#fff176',
+                300: '#ffd54f',
+                400: '#ffca28',
+                500: '#ffc107',
+                600: '#ffb300',
+                700: '#ffa000',
+                800: '#ff8f00',
+                900: '#ff6f00',
               },
-              secondary: {
-                500: '#8b5cf6',
+              emerald: {
+                950: '#022c22',
               }
             },
             animation: {
@@ -43,7 +49,7 @@
     </script>
     <style>
       body {
-        background-color: #0f172a;
+        background-color: #0a0a0a;
         color: #f8fafc;
       }
       /* Custom scrollbar */
@@ -52,14 +58,28 @@
         height: 8px;
       }
       ::-webkit-scrollbar-track {
-        background: #1e293b; 
+        background: #171717; 
       }
       ::-webkit-scrollbar-thumb {
-        background: #475569; 
+        background: #3f3f46; 
         border-radius: 4px;
+        border: 1px solid #333;
       }
       ::-webkit-scrollbar-thumb:hover {
-        background: #64748b; 
+        background: #52525b; 
+      }
+      
+      .metallic-text {
+        background: linear-gradient(to bottom, #fcd34d, #d97706);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+      
+      .glass-panel {
+        background: rgba(16, 185, 129, 0.05);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(251, 191, 36, 0.2);
+        box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
       }
     </style>
   <script type="importmap">
@@ -72,7 +92,8 @@
     "react": "https://esm.sh/react@^19.2.3",
     "qrcode.react": "https://esm.sh/qrcode.react@^4.2.0",
     "framer-motion": "https://esm.sh/framer-motion@^12.23.26",
-    "html2pdf.js": "https://esm.sh/html2pdf.js@0.10.1"
+    "html2pdf.js": "https://esm.sh/html2pdf.js@0.10.1",
+    "pdfjs-dist": "https://esm.sh/pdfjs-dist@3.11.174"
   }
 }
 </script>

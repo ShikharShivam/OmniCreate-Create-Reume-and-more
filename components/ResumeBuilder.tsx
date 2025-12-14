@@ -1,8 +1,10 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { FileText, Download, Loader2, Save, Upload, FileJson } from 'lucide-react';
+import { FileText, Download, Loader2, Save, Upload, FileJson, FileUp } from 'lucide-react';
 // @ts-ignore
 import html2pdf from 'html2pdf.js';
+// @ts-ignore
+import * as pdfjsLib from 'pdfjs-dist';
 import { generateResume } from '../services/geminiService';
 import { ResumeData, HistoryItem } from '../types';
 
@@ -14,7 +16,17 @@ export const ResumeBuilder: React.FC<ResumeBuilderProps> = ({ onSave }) => {
   const [input, setInput] = useState('');
   const [resume, setResume] = useState<ResumeData | null>(null);
   const [loading, setLoading] = useState(false);
+  const [extractingPdf, setExtractingPdf] = useState(false);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const pdfInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    // Configure worker for PDF.js
+    if (pdfjsLib.GlobalWorkerOptions) {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://esm.sh/pdfjs-dist@3.11.174/build/pdf.worker.min.js`;
+    }
+  }, []);
 
   const handleGenerate = async () => {
     if (!input.trim()) return;
@@ -45,9 +57,9 @@ export const ResumeBuilder: React.FC<ResumeBuilderProps> = ({ onSave }) => {
     const opt = {
       margin: 10,
       filename: `${resume.fullName.replace(/\s+/g, '_')}_Resume.pdf`,
-      image: { type: 'jpeg', quality: 0.98 },
+      image: { type: 'jpeg' as const, quality: 0.98 },
       html2canvas: { scale: 2, useCORS: true },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      jsPDF: { unit: 'mm' as const, format: 'a4' as const, orientation: 'portrait' as const }
     };
 
     // Generate PDF
@@ -76,11 +88,7 @@ export const ResumeBuilder: React.FC<ResumeBuilderProps> = ({ onSave }) => {
             // Basic validation check
             if (parsed.fullName && Array.isArray(parsed.experience)) {
               setResume(parsed);
-              // Set input to summary to give context if user wants to regenerate/edit prompt
-              if (parsed.summary) {
-                  setInput(parsed.summary);
-              }
-              // Add to history as an "Imported" item
+              if (parsed.summary) setInput(parsed.summary);
               onSave({
                 id: crypto.randomUUID(),
                 type: 'RESUME',
@@ -98,14 +106,35 @@ export const ResumeBuilder: React.FC<ResumeBuilderProps> = ({ onSave }) => {
         }
       };
     }
-    // Reset input so same file can be selected again
-    if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-    }
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const triggerFileInput = () => {
-    fileInputRef.current?.click();
+  const handleImportPDF = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setExtractingPdf(true);
+    try {
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        let fullText = '';
+        
+        for (let i = 1; i <= pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const textContent = await page.getTextContent();
+            // @ts-ignore
+            const pageText = textContent.items.map(item => item.str).join(' ');
+            fullText += pageText + '\n';
+        }
+
+        setInput(prev => (prev ? prev + '\n\n' + fullText : fullText));
+    } catch (error) {
+        console.error("PDF Extraction error:", error);
+        alert("Could not extract text from PDF. Ensure it is a text-based PDF.");
+    } finally {
+        setExtractingPdf(false);
+        if (pdfInputRef.current) pdfInputRef.current.value = '';
+    }
   };
 
   return (
@@ -115,13 +144,30 @@ export const ResumeBuilder: React.FC<ResumeBuilderProps> = ({ onSave }) => {
         animate={{ opacity: 1, x: 0 }}
         className="space-y-6"
       >
-        <div className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700 backdrop-blur-sm">
+        <div className="glass-panel p-6 rounded-2xl">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-2xl font-bold flex items-center gap-2">
-              <FileText className="text-cyan-400" />
+            <h2 className="text-2xl font-bold font-serif flex items-center gap-2 text-amber-400">
+              <FileText className="text-amber-300" />
               Resume Profile
             </h2>
             <div className="flex gap-2">
+                 <input 
+                    type="file" 
+                    ref={pdfInputRef}
+                    onChange={handleImportPDF}
+                    accept=".pdf"
+                    className="hidden"
+                 />
+                 <button 
+                   onClick={() => pdfInputRef.current?.click()}
+                   className="text-xs bg-neutral-800 hover:bg-neutral-700 text-amber-100 px-3 py-2 rounded-lg flex items-center gap-2 transition-colors border border-amber-500/20"
+                   title="Extract text from PDF Resume"
+                   disabled={extractingPdf}
+                 >
+                   {extractingPdf ? <Loader2 className="w-3 h-3 animate-spin" /> : <FileUp className="w-3 h-3 text-amber-400" />}
+                   Upload PDF
+                 </button>
+
                  <input 
                     type="file" 
                     ref={fileInputRef}
@@ -130,29 +176,28 @@ export const ResumeBuilder: React.FC<ResumeBuilderProps> = ({ onSave }) => {
                     className="hidden"
                  />
                  <button 
-                   onClick={triggerFileInput}
-                   className="text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-2 rounded-lg flex items-center gap-2 transition-colors border border-slate-600"
+                   onClick={() => fileInputRef.current?.click()}
+                   className="text-xs bg-neutral-800 hover:bg-neutral-700 text-amber-100 px-3 py-2 rounded-lg flex items-center gap-2 transition-colors border border-amber-500/20"
                    title="Import Resume JSON"
                  >
-                   <Upload className="w-3 h-3" /> Import
+                   <Upload className="w-3 h-3 text-amber-400" /> Import JSON
                  </button>
             </div>
           </div>
-          <p className="text-slate-400 mb-4">
-            Describe your professional background, skills, and education. The AI will structure it into a professional format.
-            Or import a previously saved JSON resume.
+          <p className="text-neutral-400 mb-4 font-light">
+            Describe your background or upload an existing PDF resume to extract details. The AI will forge it into gold standard.
           </p>
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="e.g. I am a software engineer with 5 years of experience in React and Node.js. I worked at TechCorp from 2020 to 2024 improving site performance by 20%. I have a CS degree from University X..."
-            className="w-full h-64 bg-slate-900 border border-slate-700 rounded-xl p-4 focus:ring-2 focus:ring-cyan-500 focus:outline-none text-slate-200 resize-none"
+            placeholder="e.g. I am a software engineer with 5 years of experience... (Or upload PDF to fill this)"
+            className="w-full h-64 bg-neutral-900/50 border border-emerald-500/20 rounded-xl p-4 focus:ring-1 focus:ring-amber-500 focus:border-amber-500 focus:outline-none text-neutral-200 resize-none transition-all"
           />
           <div className="mt-4 flex justify-end gap-2">
             <button
               onClick={handleGenerate}
               disabled={loading || !input}
-              className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white px-6 py-3 rounded-xl font-semibold flex items-center gap-2 disabled:opacity-50 transition-all shadow-lg shadow-cyan-900/20"
+              className="bg-gradient-to-r from-amber-600 to-yellow-500 hover:from-amber-500 hover:to-yellow-400 text-neutral-900 px-6 py-3 rounded-xl font-bold flex items-center gap-2 disabled:opacity-50 transition-all shadow-lg shadow-amber-900/20"
             >
               {loading ? <Loader2 className="animate-spin" /> : 'Generate Resume'}
             </button>
@@ -165,13 +210,13 @@ export const ResumeBuilder: React.FC<ResumeBuilderProps> = ({ onSave }) => {
         animate={{ opacity: 1, x: 0 }}
         className="flex flex-col h-[80vh] min-h-[500px]"
       >
-        <div className="bg-slate-800/80 p-4 rounded-t-2xl border-x border-t border-slate-700 flex justify-between items-center backdrop-blur-sm">
-           <span className="text-sm font-semibold text-slate-300">Preview</span>
+        <div className="bg-neutral-900/90 p-4 rounded-t-2xl border border-amber-500/20 border-b-0 flex justify-between items-center backdrop-blur-sm">
+           <span className="text-sm font-semibold text-amber-200/80 uppercase tracking-widest">Preview</span>
            <div className="flex gap-2">
               <button
                 onClick={handleExportJSON}
                 disabled={!resume}
-                className="text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-2 rounded-lg flex items-center gap-2 transition-colors border border-slate-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="text-xs bg-neutral-800 hover:bg-neutral-700 text-neutral-200 px-3 py-2 rounded-lg flex items-center gap-2 transition-colors border border-neutral-600 disabled:opacity-50"
                 title="Export as JSON"
               >
                 <FileJson className="w-3 h-3" /> Export JSON
@@ -179,7 +224,7 @@ export const ResumeBuilder: React.FC<ResumeBuilderProps> = ({ onSave }) => {
               <button
                 onClick={handleDownloadPDF}
                 disabled={!resume}
-                className="text-xs bg-red-600/80 hover:bg-red-500 text-white px-3 py-2 rounded-lg flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-red-900/20"
+                className="text-xs bg-gradient-to-r from-emerald-700 to-emerald-600 hover:from-emerald-600 hover:to-emerald-500 text-white px-3 py-2 rounded-lg flex items-center gap-2 transition-colors disabled:opacity-50 shadow-lg shadow-emerald-900/20"
                 title="Download as PDF"
               >
                 <Download className="w-3 h-3" /> Save PDF
@@ -187,32 +232,32 @@ export const ResumeBuilder: React.FC<ResumeBuilderProps> = ({ onSave }) => {
            </div>
         </div>
         
-        <div className="bg-white text-slate-900 p-8 rounded-b-2xl shadow-2xl overflow-y-auto flex-1 border-x border-b border-slate-700">
+        <div className="bg-white text-slate-900 p-8 rounded-b-2xl shadow-2xl overflow-y-auto flex-1 border border-amber-500/20 border-t-0">
           {resume ? (
             <div className="space-y-6" id="resume-preview">
               <div className="border-b-2 border-slate-900 pb-4">
-                <h1 className="text-3xl font-bold text-slate-900">{resume.fullName}</h1>
-                <div className="flex flex-wrap gap-4 mt-2 text-sm text-slate-600">
+                <h1 className="text-3xl font-serif font-bold text-slate-900">{resume.fullName}</h1>
+                <div className="flex flex-wrap gap-4 mt-2 text-sm text-slate-600 font-medium">
                   <span>{resume.email}</span>
-                  <span>•</span>
+                  <span className="text-amber-500">•</span>
                   <span>{resume.phone}</span>
                 </div>
               </div>
 
               <div className="space-y-2">
-                <h3 className="text-lg font-bold uppercase tracking-wider border-b border-slate-300 pb-1">Professional Summary</h3>
-                <p className="text-sm leading-relaxed">{resume.summary}</p>
+                <h3 className="text-lg font-bold uppercase tracking-wider border-b border-amber-300 pb-1 text-slate-800">Professional Summary</h3>
+                <p className="text-sm leading-relaxed text-slate-700">{resume.summary}</p>
               </div>
 
               <div className="space-y-4">
-                <h3 className="text-lg font-bold uppercase tracking-wider border-b border-slate-300 pb-1">Experience</h3>
+                <h3 className="text-lg font-bold uppercase tracking-wider border-b border-amber-300 pb-1 text-slate-800">Experience</h3>
                 {resume.experience.map((exp, i) => (
                   <div key={i}>
                     <div className="flex justify-between items-baseline">
-                      <h4 className="font-bold">{exp.role}</h4>
+                      <h4 className="font-bold text-slate-900">{exp.role}</h4>
                       <span className="text-sm text-slate-500">{exp.period}</span>
                     </div>
-                    <div className="text-sm font-semibold text-slate-700 mb-1">{exp.company}</div>
+                    <div className="text-sm font-semibold text-emerald-700 mb-1">{exp.company}</div>
                     <ul className="list-disc list-inside text-sm space-y-1 text-slate-700">
                       {exp.details.map((detail, j) => (
                         <li key={j}>{detail}</li>
@@ -223,23 +268,23 @@ export const ResumeBuilder: React.FC<ResumeBuilderProps> = ({ onSave }) => {
               </div>
 
               <div className="space-y-4">
-                <h3 className="text-lg font-bold uppercase tracking-wider border-b border-slate-300 pb-1">Education</h3>
+                <h3 className="text-lg font-bold uppercase tracking-wider border-b border-amber-300 pb-1 text-slate-800">Education</h3>
                 {resume.education.map((edu, i) => (
                   <div key={i}>
                     <div className="flex justify-between items-baseline">
-                      <h4 className="font-bold">{edu.school}</h4>
+                      <h4 className="font-bold text-slate-900">{edu.school}</h4>
                       <span className="text-sm text-slate-500">{edu.year}</span>
                     </div>
-                    <div className="text-sm text-slate-700">{edu.degree}</div>
+                    <div className="text-sm text-emerald-700">{edu.degree}</div>
                   </div>
                 ))}
               </div>
 
               <div className="space-y-2">
-                <h3 className="text-lg font-bold uppercase tracking-wider border-b border-slate-300 pb-1">Skills</h3>
+                <h3 className="text-lg font-bold uppercase tracking-wider border-b border-amber-300 pb-1 text-slate-800">Skills</h3>
                 <div className="flex flex-wrap gap-2">
                   {resume.skills.map((skill, i) => (
-                    <span key={i} className="bg-slate-100 px-2 py-1 rounded text-sm text-slate-700 font-medium">
+                    <span key={i} className="bg-slate-100 border border-slate-200 px-2 py-1 rounded text-sm text-slate-700 font-medium">
                       {skill}
                     </span>
                   ))}
@@ -248,10 +293,10 @@ export const ResumeBuilder: React.FC<ResumeBuilderProps> = ({ onSave }) => {
             </div>
           ) : (
             <div className="h-full flex flex-col items-center justify-center text-slate-400 space-y-4">
-              <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center">
-                <FileText className="w-8 h-8 text-slate-300" />
+              <div className="w-20 h-20 bg-gradient-to-br from-neutral-100 to-neutral-200 rounded-full flex items-center justify-center shadow-inner">
+                <FileText className="w-10 h-10 text-slate-300" />
               </div>
-              <p>Your professional resume will appear here</p>
+              <p className="font-serif italic text-lg text-slate-400">Your professional legacy awaits</p>
             </div>
           )}
         </div>
